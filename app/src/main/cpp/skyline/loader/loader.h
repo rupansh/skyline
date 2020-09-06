@@ -40,7 +40,7 @@ namespace skyline::loader {
          * @param offset The offset from the base address that the executable should be placed at
          * @return An ExecutableLoadInfo struct containing the load base and size
          */
-        static ExecutableLoadInfo LoadExecutable(const std::shared_ptr<kernel::type::KProcess> process, const DeviceState &state, Executable &executable, size_t offset = 0);
+        static ExecutableLoadInfo LoadExecutable(const std::shared_ptr<kernel::type::KProcess> process, const DeviceState &state, Executable &executable, size_t offset = 0, std::vector<u32> caps = {});
 
       public:
         std::shared_ptr<vfs::NACP> nacp; //!< The NACP of the current application

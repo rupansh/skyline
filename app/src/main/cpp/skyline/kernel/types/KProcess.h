@@ -7,6 +7,7 @@
 #include <kernel/memory.h>
 #include "KThread.h"
 #include "KPrivateMemory.h"
+#include "KProcessCapabilities.h"
 #include "KTransferMemory.h"
 #include "KSharedMemory.h"
 #include "KSession.h"
@@ -120,6 +121,7 @@ namespace skyline {
             std::vector<std::shared_ptr<TlsPage>> tlsPages; //!< A vector of all allocated TLS pages
             std::shared_ptr<type::KSharedMemory> stack; //!< The shared memory used to hold the stack of the main thread
             std::shared_ptr<KPrivateMemory> heap; //!< The kernel memory object backing the allocated heap
+            KProcessCapabilities capabilities; //!< The capabilities of the process
             Mutex mutexLock; //!< This mutex is to prevent concurrent mutex operations to happen at once
             Mutex conditionalLock; //!< This mutex is to prevent concurrent conditional variable operations to happen at once
 
@@ -137,6 +139,12 @@ namespace skyline {
             * Close the file descriptor to the process's memory
             */
             ~KProcess();
+
+            /**
+             * @brief Initializes Process capabilities
+             * @param caps Capabilities from metadata
+             */
+            void InitializeCapabilities(std::vector<u32> caps);
 
             /**
             * @brief Create a thread in this process

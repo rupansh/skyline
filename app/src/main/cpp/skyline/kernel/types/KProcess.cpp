@@ -78,6 +78,11 @@ namespace skyline::kernel::type {
         status = Status::Exiting;
     }
 
+    void KProcess::InitializeCapabilities(std::vector<u32> caps) {
+        capabilities = KProcessCapabilities();
+        capabilities.InitializeUserProcess(state, caps, stack);
+    }
+
     std::shared_ptr<KThread> KProcess::CreateThread(u64 entryPoint, u64 entryArg, u64 stackTop, i8 priority) {
         auto size = (sizeof(ThreadContext) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
         auto tlsMem = std::make_shared<type::KSharedMemory>(state, 0, size, memory::Permission{true, true, false}, memory::states::Reserved);
