@@ -59,6 +59,8 @@ namespace skyline::loader {
 
         nroExecutable.bssSize = header.bssSize;
 
+        state.process->LoadMetadata(vfs::MetaData::Homebrew());
+
         auto loadInfo = LoadExecutable(process, state, nroExecutable);
         state.os->memory.InitializeRegions(loadInfo.base, loadInfo.size, memory::AddressSpaceType::AddressSpace39Bit);
     }

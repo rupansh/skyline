@@ -8,6 +8,7 @@
 #include <nce/guest.h>
 #include <nce.h>
 #include <os.h>
+#include <vfs/metadata.h>
 #include "KProcess.h"
 
 namespace skyline::kernel::type {
@@ -64,7 +65,7 @@ namespace skyline::kernel::type {
     KProcess::KProcess(const DeviceState &state, pid_t pid, u64 entryPoint, std::shared_ptr<type::KSharedMemory> &stack, std::shared_ptr<type::KSharedMemory> &tlsMemory) : pid(pid), stack(stack), KSyncObject(state, KType::KProcess) {
         constexpr auto DefaultPriority = 44; // The default priority of a process
 
-        auto thread = NewHandle<KThread>(pid, entryPoint, 0x0, stack->guest.address + stack->guest.size, 0, DefaultPriority, this, tlsMemory).item;
+        auto thread = NewHandle<KThread>(pid, entryPoint, 0x0, stack->guest.address + stack->guest.size, 0, DefaultPriority, 0, this, tlsMemory).item; // Perhaps we should use preferred core/prio from Metadata?
         threads[pid] = thread;
         state.nce->WaitThreadInit(thread);
 
@@ -78,12 +79,14 @@ namespace skyline::kernel::type {
         status = Status::Exiting;
     }
 
-    void KProcess::InitializeCapabilities(std::vector<u32> caps) {
+    void KProcess::LoadMetadata(vfs::MetaData metaData) {
+        prefCore = *metaData.threadCore;
+        systemResourceSize = *metaData.systemResourceSize;
         capabilities = KProcessCapabilities();
-        capabilities.InitializeUserProcess(state, caps, stack);
+        capabilities.InitializeUserProcess(state, metaData.capabilities, stack);
     }
 
-    std::shared_ptr<KThread> KProcess::CreateThread(u64 entryPoint, u64 entryArg, u64 stackTop, i8 priority) {
+    std::shared_ptr<KThread> KProcess::CreateThread(u64 entryPoint, u64 entryArg, u64 stackTop, i8 priority, u32 cpuCore) {
         auto size = (sizeof(ThreadContext) + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1);
         auto tlsMem = std::make_shared<type::KSharedMemory>(state, 0, size, memory::Permission{true, true, false}, memory::states::Reserved);
 
@@ -101,7 +104,7 @@ namespace skyline::kernel::type {
             throw exception("Cannot create thread: Address: 0x{:X}, Stack Top: 0x{:X}", entryPoint, stackTop);
 
         auto pid = static_cast<pid_t>(fregs.x0);
-        auto process = NewHandle<KThread>(pid, entryPoint, entryArg, stackTop, GetTlsSlot(), priority, this, tlsMem).item;
+        auto process = NewHandle<KThread>(pid, entryPoint, entryArg, stackTop, GetTlsSlot(), priority, cpuCore, this, tlsMem).item;
         threads[pid] = process;
 
         return process;

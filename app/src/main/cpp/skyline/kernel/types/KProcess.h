@@ -5,6 +5,7 @@
 
 #include <list>
 #include <kernel/memory.h>
+#include <vfs/metadata.h>
 #include "KThread.h"
 #include "KPrivateMemory.h"
 #include "KProcessCapabilities.h"
@@ -113,6 +114,8 @@ namespace skyline {
 
             KHandle handleIndex = constant::BaseHandleIndex; //!< This is used to keep track of what to map as an handle
             pid_t pid; //!< The PID of the process or TGID of the threads
+            u32 prefCore; //!< The preferred Core for the process
+            u32 systemResourceSize; //!< The size of PersonalMmHeap
             int memFd; //!< The file descriptor to the memory of the process
             std::unordered_map<KHandle, std::shared_ptr<KObject>> handles; //!< A mapping from a handle_t to it's corresponding KObject which is the actual underlying object
             std::unordered_map<pid_t, std::shared_ptr<KThread>> threads; //!< A mapping from a PID to it's corresponding KThread object
@@ -142,9 +145,9 @@ namespace skyline {
 
             /**
              * @brief Initializes Process capabilities
-             * @param caps Capabilities from metadata
+             * @param metaData Meta Data from NPDM
              */
-            void InitializeCapabilities(std::vector<u32> caps);
+            void LoadMetadata(vfs::MetaData metaData);
 
             /**
             * @brief Create a thread in this process
@@ -152,9 +155,10 @@ namespace skyline {
             * @param entryArg An argument to the function
             * @param stackTop The top of the stack
             * @param priority The priority of the thread
+            * @param cpuCore The preferred Cpu Core
             * @return An instance of KThread class for the corresponding thread
             */
-            std::shared_ptr<KThread> CreateThread(u64 entryPoint, u64 entryArg, u64 stackTop, i8 priority);
+            std::shared_ptr<KThread> CreateThread(u64 entryPoint, u64 entryArg, u64 stackTop, i8 priority, u32 cpuCore);
 
             /**
             * @brief This returns the host address for a specific address in guest memory

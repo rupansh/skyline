@@ -101,6 +101,11 @@ namespace skyline {
         void SetThreadPriority(DeviceState &state);
 
         /**
+         * @brief Sets the affinity mask of provided thread handle.  (https://switchbrew.org/wiki/SVC#SetThreadCoreMask)
+         */
+        void SetThreadCoreMask(DeviceState &state);
+
+        /**
          * @brief Clears a KEvent of it's signal (https://switchbrew.org/wiki/SVC#ClearEvent)
          */
         void ClearEvent(DeviceState &state);
@@ -204,7 +209,7 @@ namespace skyline {
             GetThreadPriority, // 0x0C
             SetThreadPriority, // 0x0D
             nullptr, // 0x0E
-            nullptr, // 0x0F
+            SetThreadCoreMask, // 0x0F
             nullptr, // 0x10
             nullptr, // 0x11
             ClearEvent, // 0x12

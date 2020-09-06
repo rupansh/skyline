@@ -50,6 +50,7 @@ namespace skyline {
             constexpr u32 InvPermission = 0xD801; //!< "Invalid Permission"
             constexpr u32 InvMemRange = 0xD801; //!< "Invalid Memory Range"
             constexpr u32 InvPriority = 0xE001; //!< "Invalid Priority"
+            constexpr u32 InvProcessorId = 0xE201; //!< "Invalid Processor Id"
             constexpr u32 InvHandle = 0xE401; //!< "Invalid handle"
             constexpr u32 InvCombination = 0xE801; //!< "Invalid combination"
             constexpr u32 Timeout = 0xEA01; //!< "Timeout"

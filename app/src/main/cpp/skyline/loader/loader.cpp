@@ -7,7 +7,7 @@
 #include "loader.h"
 
 namespace skyline::loader {
-    Loader::ExecutableLoadInfo Loader::LoadExecutable(const std::shared_ptr<kernel::type::KProcess> process, const DeviceState &state, Executable &executable, size_t offset, std::vector<u32> caps) {
+    Loader::ExecutableLoadInfo Loader::LoadExecutable(const std::shared_ptr<kernel::type::KProcess> process, const DeviceState &state, Executable &executable, size_t offset) {
         u64 base = constant::BaseAddress + offset;
 
         u64 textSize = executable.text.contents.size();
@@ -43,8 +43,6 @@ namespace skyline::loader {
         process->WriteMemory(executable.ro.contents.data(), base + executable.ro.offset, roSize);
         process->WriteMemory(executable.data.contents.data(), base + executable.data.offset, dataSize - executable.bssSize);
         process->WriteMemory(patch.data(), base + patchOffset, patchSize);
-
-        process->InitializeCapabilities(caps);
 
         return {base, patchOffset + patchSize + padding};
     }

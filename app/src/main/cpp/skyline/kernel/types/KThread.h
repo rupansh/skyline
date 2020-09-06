@@ -54,6 +54,12 @@ namespace skyline::kernel::type {
         u64 stackTop; //!< The top of the stack (Where it starts growing downwards from)
         u64 tls; //!< The address of TLS (Thread Local Storage) slot assigned to the current thread
         i8 priority; //!< The priority of a thread in Nintendo format
+        u32 currentCore;
+        i32 prefCoreOverride = -1; //!< Preferred core override
+        u64 affMaskOverride = 0x1; //!< Affinity mask override
+        u32 affOverrideCnt = 0;
+        u32 prefCore{0}; //!< Preferred core
+        u64 affMask{0x1}; //!< Affinity mask
 
         Priority androidPriority{19, -8}; //!< The range of priorities for Android
         Priority switchPriority{0, 63}; //!< The range of priorities for the Nintendo Switch
@@ -67,10 +73,11 @@ namespace skyline::kernel::type {
          * @param stackTop The top of the stack
          * @param tls The address of the TLS slot assigned
          * @param priority The priority of the thread in Nintendo format
+         * @param cpuCore The preferred Cpu Core
          * @param parent The parent process of this thread
          * @param tlsMemory The KSharedMemory object for TLS memory allocated by the guest process
          */
-        KThread(const DeviceState &state, KHandle handle, pid_t selfTid, u64 entryPoint, u64 entryArg, u64 stackTop, u64 tls, i8 priority, KProcess *parent, const std::shared_ptr<type::KSharedMemory> &tlsMemory);
+        KThread(const DeviceState &state, KHandle handle, pid_t selfTid, u64 entryPoint, u64 entryArg, u64 stackTop, u64 tls, i8 priority, u32 cpuCore, KProcess *parent, const std::shared_ptr<type::KSharedMemory> &tlsMemory);
 
         /**
          * @brief Kills the thread and deallocates the memory allocated for stack.
@@ -93,5 +100,7 @@ namespace skyline::kernel::type {
          * @param priority The priority of the thread in Nintendo format
          */
         void UpdatePriority(i8 priority);
+
+        u32 UpdatePreferredCoreAndAffinityMask(u32 newPrefCore, u64 newAffMask);
     };
 }

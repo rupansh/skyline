@@ -221,6 +221,10 @@ namespace skyline::kernel::svc {
         auto entryArgument = state.ctx->registers.x2;
         auto stackTop = state.ctx->registers.x3;
         auto priority = static_cast<i8>(state.ctx->registers.w4);
+        auto cpuCore = state.ctx->registers.w5;
+
+        if (cpuCore == static_cast<u32>(-2))
+            cpuCore = state.process->prefCore;
 
         if (!state.thread->switchPriority.Valid(priority)) {
             state.ctx->registers.w0 = constant::status::InvAddress;
@@ -228,7 +232,7 @@ namespace skyline::kernel::svc {
             return;
         }
 
-        auto thread = state.process->CreateThread(entryAddress, entryArgument, stackTop, priority);
+        auto thread = state.process->CreateThread(entryAddress, entryArgument, stackTop, priority, cpuCore);
         state.logger->Debug("svcCreateThread: Created thread with handle 0x{:X} (Entry Point: 0x{:X}, Argument: 0x{:X}, Stack Pointer: 0x{:X}, Priority: {}, TID: {})", thread->handle, entryAddress, entryArgument, stackTop, priority, thread->tid);
 
         state.ctx->registers.w1 = thread->handle;
@@ -297,6 +301,50 @@ namespace skyline::kernel::svc {
         } catch (const std::exception &) {
             state.logger->Warn("svcSetThreadPriority: 'handle' invalid: 0x{:X}", handle);
             state.ctx->registers.w0 = constant::status::InvHandle;
+        }
+    }
+
+    void SetThreadCoreMask(DeviceState &state) {
+        auto handle = state.ctx->registers.w0;
+        u32 prefCore = state.ctx->registers.w1;
+        u64 affMask = state.ctx->registers.x2;
+
+        if (prefCore == static_cast<u32>(-2)) {
+            prefCore = state.process->prefCore;
+            affMask = 1;
+            state.logger->Debug("svcSetThreadCoreMask: preferred Core is -2");
+        } else {
+            if ((state.process->capabilities.coreMask | affMask) != state.process->capabilities.coreMask) {
+                state.logger->Warn("svcSetThreadCoreMask: processor ID invalid");
+                state.ctx->registers.w0 = constant::status::InvProcessorId;
+                return;
+            }
+            if (affMask == 0) {
+                state.logger->Warn("svcSetThreadCoreMask: affinity mask is zero");
+                state.ctx->registers.w0 = constant::status::InvCombination;
+                return;
+            }
+
+            if (prefCore < 4 && !(affMask & (1ull << prefCore))) {
+                state.logger->Warn("svcSetThreadCoreMask: Core is not enabled");
+                state.ctx->registers.w0 = constant::status::InvCombination;
+                return;
+            } else if (!(prefCore == static_cast<u32>(-1) || prefCore == static_cast<u32>(-3))) {
+                state.logger->Warn("svcSetThreadCoreMask: processor ID invalid");
+                state.ctx->registers.w0 = constant::status::InvProcessorId;
+                return;
+            }
+        }
+
+        try {
+            auto thread = state.process->GetHandle<type::KThread>(handle);
+            u32 res = thread->UpdatePreferredCoreAndAffinityMask(prefCore, affMask);
+            if (res != constant::status::Success)
+                state.logger->Warn("svcSetThreadCoreMask: Failed to update Core and Affinity Mask: 0x{:X}", res);
+
+            state.ctx->registers.w0 = res;
+        } catch(const std::exception &) {
+            state.logger->Warn("svcSetThreadCoreMask: 'handle' invalid");
         }
     }
 
@@ -643,7 +691,11 @@ namespace skyline::kernel::svc {
 
         switch (id0) {
             case constant::infoState::AllowedCpuIdBitmask:
+                out = state.process->capabilities.coreMask;
+                break;
             case constant::infoState::AllowedThreadPriorityMask:
+                out = state.process->capabilities.threadMask;
+                break;
             case constant::infoState::IsCurrentProcessBeingDebugged:
             case constant::infoState::TitleId:
             case constant::infoState::PrivilegedProcessId:

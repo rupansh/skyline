@@ -7,8 +7,10 @@
 #include "KProcess.h"
 
 namespace skyline::kernel::type {
-    KThread::KThread(const DeviceState &state, KHandle handle, pid_t selfTid, u64 entryPoint, u64 entryArg, u64 stackTop, u64 tls, i8 priority, KProcess *parent, const std::shared_ptr<type::KSharedMemory> &tlsMemory) : handle(handle), tid(selfTid), entryPoint(entryPoint), entryArg(entryArg), stackTop(stackTop), tls(tls), priority(priority), parent(parent), ctxMemory(tlsMemory), KSyncObject(state,
+    KThread::KThread(const DeviceState &state, KHandle handle, pid_t selfTid, u64 entryPoint, u64 entryArg, u64 stackTop, u64 tls, i8 priority, u32 cpuCore, KProcess *parent, const std::shared_ptr<type::KSharedMemory> &tlsMemory) : handle(handle), tid(selfTid), entryPoint(entryPoint), entryArg(entryArg), stackTop(stackTop), tls(tls), priority(priority), parent(parent), ctxMemory(tlsMemory), KSyncObject(state,
         KType::KThread) {
+        currentCore = cpuCore;
+        affMask = 1 << currentCore;
         UpdatePriority(priority);
     }
 
@@ -41,5 +43,45 @@ namespace skyline::kernel::type {
 
         if (setpriority(PRIO_PROCESS, static_cast<id_t>(tid), priorityValue) == -1)
             throw exception("Couldn't set process priority to {} for PID: {}", priorityValue, tid);
+    }
+
+    u32 KThread::UpdatePreferredCoreAndAffinityMask(u32 newPrefCore, u64 newAffMask) {
+        bool override = affOverrideCnt != 0;
+
+        if (static_cast<i32>(newPrefCore) == -3) {
+            newPrefCore = override ? prefCoreOverride : prefCore;
+            if (newAffMask & (1 << newPrefCore))
+                return constant::status::InvCombination;
+        }
+
+        if (override) {
+            prefCoreOverride = newPrefCore;
+            affMaskOverride = newAffMask;
+        } else {
+            u64 oldAffMask = affMask;
+            prefCore = newPrefCore;
+            affMask = newAffMask;
+
+            if (oldAffMask != newAffMask) {
+                //u32 oldCore = currentCore;
+
+                if (currentCore >= 0 && !((affMask >> currentCore) & 1)) {
+                    if (prefCore < 0) {
+                        for (u32 core = 3; core >= 0; core--) {
+                            if ((affMask >> core) & 1) {
+                                currentCore = core;
+                                break;
+                            }
+                        }
+                    } else {
+                        currentCore = prefCore;
+                    }
+                }
+
+                // TODO: Adjust Scheduler
+            }
+        }
+
+        return constant::status::Success;
     }
 }
